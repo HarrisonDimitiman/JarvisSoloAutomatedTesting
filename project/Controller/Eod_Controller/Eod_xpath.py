@@ -1,6 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium import webdriver
 
 class Element:
     def __init__(self, name, xpath, type):
@@ -9,25 +10,40 @@ class Element:
         self.xpath = xpath
         self.type = type
         self.instantiated = False
+        self.waited = False
 
-    def instantiateElement(self, driver):
-        self.instantiated = True
+    def waitForElement(self, driver):
+        self.waited = True
         try:
-            self.element = WebDriverWait(driver, 60).until(
+            WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, self.xpath))
             )
         except: 
             pass
     
     def getElement(self):
-        return self.element
+        if self.instantiated and self.element == None:
+            return None
+        elif self.instantiated and self.element:
+            return self.element
+        else:
+            raise Exception("Element not instantiated.")
+        
 
-# InputElement, CollectionElement, and TextElement implements different getValue().
+# InputElement, CollectionElement, and TextElement implements different getValue() and findElement().
 # Message to future eyd: Need to find way to require the implementation of the getValue method of children classes inherting the Element class.
 
 class InputElement(Element):
     def __init__(self, name, xpath):
         super().__init__(name, xpath, "value")
+
+    def findElement(self, driver):
+        self.instantiated = True
+
+        if not self.waited:
+            self.waitForElement(driver)
+
+        self.element = driver.find_element(by = By.XPATH, value=self.xpath)
     
     def getValue(self):
         if self.element == None: 
@@ -38,6 +54,17 @@ class InputElement(Element):
 class TextElement(Element):
     def __init__(self, name, xpath):
         super().__init__(name, xpath, "value")
+
+    def findElement(self, driver):
+        self.instantiated = True
+
+        if not self.waited:
+            self.waitForElement(driver)
+
+        try:
+            self.element = driver.find_element(by = By.XPATH, value=self.xpath)
+        except:
+            pass
     
     def getValue(self):
         if self.element == None: 
@@ -49,6 +76,14 @@ class CollectionElement(Element):
     def __init__(self, name, xpath):
         super().__init__(name, xpath, "collection")
 
+    def findElement(self, driver):
+        self.instantiated = True
+
+        if not self.waited:
+            self.waitForElement(driver)
+
+        self.element = driver.find_elements(by = By.XPATH, value=self.xpath)
+
     def getValue(self):
         if self.element == None: 
             raise Exception("Element not instantiated.")
@@ -59,11 +94,19 @@ class ClickableElement(Element):
     def __init__(self, name, xpath):
         super().__init__(name, xpath, "button")
 
-    def click(self):
+    def findElement(self, driver):
+        self.instantiated = True
+
+        if not self.waited:
+            self.waitForElement(driver)
+
+        self.element = driver.find_element(by = By.XPATH, value=self.xpath)
+
+    def click(self, driver):
         if self.element == None: 
             raise Exception("Element not instantiated.")
-        
-        self.element.click()
+        webdriver.ActionChains(driver).move_to_element(self.element).click(self.element).perform()
+        # self.element.click()
 
 # BEYOND ARE HARDCODED XPATHS, NEED TO CHANGE IMPLEMENTATION LATER TO INCOPORATE DATABASE CALLS
 
@@ -87,7 +130,7 @@ class BreakdownXpath:
     no_show = ClickableElement('no_show', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[1]/div[1]/div/div[17]/div[1]/label/div/a')
     daily_coll = ClickableElement('daily_coll', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[1]/div[1]/div/div[14]/div[1]/label/div/a')
     hyg_reapp = ClickableElement('hyg_reapp', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[1]/div[1]/div/div[28]/div[1]/label/div/a')
-    new_patients = ClickableElement('new_patients', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[2]/div[12]/div[1]/label/div/a')
+    new_patients = ClickableElement('new_patients', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[1]/div[1]/div/div[21]/div[1]/label/div/a')
     same_day_treat = ClickableElement('same_day_treat', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[1]/div[1]/div/div[18]/div[1]/label/div/a')
     pt_portion = ClickableElement('pt_portion', '/html/body/div[1]/main/div[2]/div[3]/div[1]/div/form/div/div[1]/div[1]/div/div[5]/div[1]/label/div/a')
 
@@ -105,6 +148,30 @@ class ModalMetricXpath:
     new_patients = CollectionElement('new_patients', '/html/body/div[1]/main/div[3]/div[6]/div/div/div[2]/table/tbody/tr')
     same_day_treat = TextElement('same_day_treat', '/html/body/div[1]/main/div[3]/div[5]/div/div/div[2]/div[2]/div/table/tr[2]/td[5]/strong/span')
     pt_portion = TextElement('pt_portion', '/html/body/div[1]/main/div[3]/div[1]/div/div/div[2]/div[2]/div/table/tr[1]/td[2]/strong/span')
+
+# class ModalCloseBtnXpath:
+#               collection = ClickableElement('collection', '/html/body/div[1]/main/div[3]/div[9]/div/div/div[1]/button')
+#             adjustments = ClickableElement('adjustments', '/html/body/div[1]/main/div[3]/div[2]/div/div/div[1]/button')
+#     case_acceptance = ClickableElement('case_acceptance', '/html/body/div[1]/main/div[3]/div[9]/div/div/div[1]/button')
+#             missing_ref = ClickableElement('missing_ref', '/html/body/div[1]/main/div[3]/div[7]/div/div/div[1]/button')
+#                     no_show = ClickableElement('no_show', '/html/body/div[1]/main/div[3]/div[4]/div/div/div[1]/button')
+#               daily_coll = ClickableElement('daily_coll', '/html/body/div[1]/main/div[3]/div[3]/div/div/div[1]/button')
+#                 hyg_reapp = ClickableElement('hyg_reapp', '/html/body/div[1]/main/div[3]/div[8]/div/div/div[1]/button')
+#           new_patients = ClickableElement('new_patients', '/html/body/div[1]/main/div[3]/div[6]/div/div/div[1]/button')
+#       same_day_treat = ClickableElement('same_day_treat', '/html/body/div[1]/main/div[3]/div[5]/div/div/div[1]/button')
+#               pt_portion = ClickableElement('pt_portion', '/html/body/div[1]/main/div[3]/div[1]/div/div/div[1]/button')
+
+class ModalCloseBtnXpath:
+    collection = ClickableElement('collection', '/html/body/div[1]/main/div[3]/div[9]/div/div/div[1]/button')
+    adjustments = ClickableElement('adjustments', '/html/body/div[1]/main/div[3]/div[2]/div/div/div[1]/button')
+    case_acceptance = ClickableElement('case_acceptance', '/html/body/div[1]/main/div[3]/div[9]/div/div/div[1]/button')
+    missing_ref = ClickableElement('missing_ref', '/html/body/div[1]/main/div[3]/div[7]/div/div/div[1]/button')
+    no_show = ClickableElement('no_show', '/html/body/div[1]/main/div[3]/div[4]/div/div/div[1]/button')
+    daily_coll = ClickableElement('daily_coll', '/html/body/div[1]/main/div[3]/div[3]/div/div/div[1]/button')
+    hyg_reapp = ClickableElement('hyg_reapp', '/html/body/div[1]/main/div[3]/div[8]/div/div/div[1]/button')
+    new_patients = ClickableElement('new_patients', '/html/body/div[1]/main/div[3]/div[6]/div/div/div[1]/button')
+    same_day_treat = ClickableElement('same_day_treat', '/html/body/div[1]/main/div[3]/div[5]/div/div/div[1]/button')
+    pt_portion = ClickableElement('pt_portion', '/html/body/div[1]/main/div[3]/div[1]/div/div/div[1]/button')
 
 class EodSetupXpath:
     date_picker = '//*[@class="vue-daterange-picker w-full"]'
